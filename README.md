@@ -55,7 +55,8 @@ The object is always filled with a code and a message attributes.
 The library does not halt on exceptions, but on the higher ones (aka system failure).  
 This design is used to allow returning meaningful responses basing on the kind of errors raised (JSON parse, timeout, SSL error, etc).  
 All exceptions are wrapped by a general one, then rescued by the *tx* method. 
-I know using exceptions as control flow is not terrific, but i tried to mimic as much as possible the original behaviour of the PHP/Java versions
+I know using exceptions as control flow is not terrific, but i tried to mimic as much as possible the original behaviour of the PHP/Java versions.   
+To mitigate i log every error on a custom collaborator.
 
 ### Constants
 A set of constants are defined by an external module. They identifies the error codes to be used in case of exceptions and are set on the response object.
