@@ -1,0 +1,1 @@
+I, [2016-04-01T15:06:08.877073 #11338]  INFO -- : do_request(https://xpayclient.lgdacom.net:7443/xpay/Gateway.do) - {"LGD_TXID"=>"tlgdacomxpay-12016040113050820129f49f8677176f115f6c46ed40c991aee89c0", "LGD_AUTHCODE"=>"cce3eae082ae8885f6f272cae3f16ca566941c78", "LGD_MID"=>"tlgdacomxpay"}
