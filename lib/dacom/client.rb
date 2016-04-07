@@ -35,6 +35,8 @@ module Dacom
       json = do_request
       data = parse_response(json)
       @response = Response::new(data)
+      @logger.info("response: #{@response}")
+      @response
     rescue ResponseError => e
       @logger.error("rescue from ResponseError - #{e.message} \n #{e.backtrace.join("\n")}")
       rollback
@@ -109,7 +111,7 @@ module Dacom
 
     def do_request
       req, http = prepare_http_client
-      @logger.info("do_request(#{@endpoint}) - #{@form_data.inspect}")
+      @logger.info("request: #{@endpoint} - #{@form_data.inspect}")
       res = http.request(req)
       set_http_code(res.code) 
       res.body
@@ -127,6 +129,7 @@ module Dacom
 
     def set_response_and_raise(code, e)
       @response = Response::new(:code => code, :message => e.message)
+      @logger.info("response: #{@response}")
       @logger.error("rescue from #{e.class} - #{e.message} \n #{e.backtrace.join("\n")}")
       raise ResponseError, e.message
     end

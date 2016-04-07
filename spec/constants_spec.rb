@@ -1,4 +1,4 @@
-require 'test_helper'
+require 'spec_helper'
 require 'dacom/constants'
 
 describe Dacom::Constants do

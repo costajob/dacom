@@ -1,0 +1,2 @@
+I, [2016-04-07T13:31:54.883968 #23521]  INFO -- : request: https://xpayclient.lgdacom.net:7443/xpay/Gateway.do - {"LGD_TXID"=>"tlgdacomxpay-120160407113135592cebc48b96f77f16d43763d0bb23e1f3ab2f49", "LGD_AUTHCODE"=>"8e23c8ca9016286b7563b71f5771e80b7efdd081", "LGD_MID"=>"tlgdacomxpay"}
+I, [2016-04-07T13:31:59.263917 #23521]  INFO -- : response: <Dacom::Response:70217577404140, code: "XC01", message: "LGD_TXNAME 필드가 누락되었습니다.", successful: false>

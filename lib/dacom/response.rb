@@ -17,5 +17,9 @@ module Dacom
     def successful?
       @code == SUCCESS_CODE
     end
+
+    def to_s
+      %Q{<Dacom::Response:#{__id__}, code: "#{@code}", message: "#{@message}", successful: #{successful?}>}
+    end
   end
 end
