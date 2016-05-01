@@ -105,7 +105,7 @@ module Dacom
 
     def rollback_reason
       return "Timeout" if @response.code == LGD_ERR_TIMEDOUT
-      return "HTTP #{@http_code}" if @http_code >= 500
+      return "HTTP #{@http_code}" if (500...599) === @http_code.to_i
       @response.message
     end
 
