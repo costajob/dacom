@@ -18,9 +18,9 @@ Gem::Specification.new do |s|
   s.executables = s.files.grep(%r{^exe/}) { |f| File.basename(f) }
   s.require_paths = ["lib"]
   
-  s.add_runtime_dependency "json"
+  s.add_runtime_dependency "json", "~> 1.8"
   s.add_development_dependency "bundler", "~> 1.11"
   s.add_development_dependency "rake", "~> 10.0"
   s.add_development_dependency "minitest", "~> 5.0"
-  s.add_development_dependency "rr"
+  s.add_development_dependency "rr ~> 1.2"
 end
