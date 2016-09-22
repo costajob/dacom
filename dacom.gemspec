@@ -12,6 +12,7 @@ Gem::Specification.new do |s|
   s.homepage = "https://github.com/costajob/dacom"
   s.license = "MIT"
   s.required_ruby_version = ">= 1.8.7"
+
   s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   s.bindir = "exe"
   s.executables = s.files.grep(%r{^exe/}) { |f| File.basename(f) }
