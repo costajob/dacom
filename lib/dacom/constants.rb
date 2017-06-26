@@ -32,7 +32,7 @@ module Dacom
 
     def included(klass)
       all.each do |k,v|
-        klass::const_set(k.upcase, v.freeze)
+        klass::const_set(k.upcase, v)
       end
     end
   end

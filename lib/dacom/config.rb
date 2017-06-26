@@ -1,12 +1,16 @@
-require 'yaml'
-require 'erb'
+require "erb"
+require "yaml"
 
 module Dacom
   class Config
-    CONFIG_PATH = File::expand_path("../../../config/dacom.yml", __FILE__)
+    module Platform
+      %w[test service].each do |platform|
+        Platform.const_set(platform.upcase, platform)
+      end
+    end
 
-    def initialize(path = CONFIG_PATH)
-      @path = path
+    def initialize(path = "~/dacom.yml")
+      @path = File.expand_path(path)
       @config = fetch_config
     end
 
@@ -32,8 +36,8 @@ module Dacom
     end
 
     def platform
-      return "test".freeze if test_mode?
-      "service".freeze
+      return Platform::TEST if test_mode?
+      Platform::SERVICE
     end
 
     def verify_peer?
@@ -43,7 +47,7 @@ module Dacom
     private
 
     def test_mode?
-      @config.fetch("test_mode") { false }
+      @config["test_mode"]
     end
 
     def fetch_config

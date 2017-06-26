@@ -1,8 +1,8 @@
 module Dacom
   class Response
-    attr_reader :code, :message, :raw
+    SUCCESS_CODE = "0000"
 
-    SUCCESS_CODE = "0000".freeze
+    attr_reader :code, :message, :raw
 
     def initialize(data = {})
       @code = data.fetch("LGD_RESPCODE") { data[:code] }

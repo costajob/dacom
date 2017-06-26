@@ -1,42 +1,43 @@
-require 'net/https'
-require 'uri'
-require 'openssl'
-require 'json'
-require 'logger'
-require 'dacom/config'
-require 'dacom/constants'
-require 'dacom/response'
+require "forwardable"
+require "json"
+require "logger"
+require "net/https"
+require "openssl"
+require "securerandom"
+require "dacom/config"
+require "dacom/constants"
+require "dacom/response"
 
 module Dacom
   class Client
+    extend Forwardable
     include Constants
-
-    LOGGER_PATH = File::expand_path("../../../log/dacom.log", __FILE__)
 
     class ResponseError < StandardError; end
     class HTTPCodeError < StandardError; end
 
-    attr_reader :response, :form_data
+    def_delegators :@config, :server_id, :merchant_id, :merchant_key, :verify_peer?, :timeout
 
-    def initialize(options = {})
-      @config = options.fetch(:config) { Config::new }
-      @logger = options.fetch(:logger) { Logger::new(LOGGER_PATH) }
-      @mid = @config.merchant_id
-      @mert_key = @config.merchant_key
+    attr_reader :response
+
+    def initialize(config: Config.new, net_klass: Net::HTTP, res_klass: Response, logger: Logger.new(nil), time: Time.now, uuid: SecureRandom.uuid)
+      @config = config
+      @net_klass = net_klass
+      @res_klass = res_klass
+      @logger = logger
+      @time = time
+      @uuid = uuid
       @auto_rollback = @config.auto_rollback
       @report_error = @config.report_error
       @endpoint = @config.url
-      @tx_id = gen_tx_id
-      @auth_code = gen_auth_code
-      @form_data = init_form_data
     end
 
-    def tx
-      json = do_request
+    def tx(&b)
+      json = Thread.new { do_request(&b) }.value
       data = parse_response(json)
-      @response = Response::new(data)
-      @logger.info("response: #{@response}")
-      @response
+      @response = @res_klass.new(data).tap do |res|
+        @logger.info("RESPONSE: #{res}")
+      end
     rescue ResponseError => e
       @logger.error("rescue from ResponseError - #{e.message} \n #{e.backtrace.join("\n")}")
       rollback
@@ -45,74 +46,71 @@ module Dacom
     end
 
     def set(k, v)
-      @form_data[k] = v
+      form_data[k] = v
     end
 
-    private
+    def form_data
+      @form_data ||= { "LGD_TXID" => tx_id, "LGD_AUTHCODE" => auth_code, "LGD_MID" => merchant_id }
+    end
 
-    def rollback
+    private def tx_id
+      @tx_id ||= begin
+                   sha = OpenSSL::Digest::SHA1.new
+                   sha.update(@uuid)
+                   "#{tx_header}#{sha}"
+                 end
+    end
+
+    private def auth_code
+      sha = OpenSSL::Digest::SHA1.new
+      sha.update("#{tx_id}#{merchant_key}").to_s
+    end
+
+    private def tx_header
+      "#{merchant_id}-#{server_id}#{timestamp}"
+    end
+
+    private def timestamp
+      @time.utc.strftime("%Y%m%d%H%M%S")
+    end
+
+    private def rollback
       return unless @auto_rollback
-      rollback_client = RollbackClient::new(:config => @config, 
-                                            :parent_id => @tx_id, 
-                                            :reason => rollback_reason)
-      Thread::new { rollback_client.tx }
+      RollbackClient.new(config: @config, 
+                         logger: @logger,
+                         net_klass: @net_klass,
+                         res_klass: @res_klass,
+                         parent_id: tx_id, 
+                         reason: rollback_reason).tx
     end
 
-    def report
+    private def report
       return unless @report_error
-      report_client = ReportClient::new(:config => @config,
-                                        :status => @response.code,
-                                        :message => @response.message)
-      Thread::new { report_client.tx }
+      ReportClient.new(config: @config,
+                       logger: @logger,
+                       net_klass: @net_klass,
+                       res_klass: @res_klass,
+                       status: @response.code,
+                       message: @response.message).tx
     end
 
-    def parse_response(json)
-      JSON::parse(json)
+    private def parse_response(json)
+      JSON.parse(json)
     rescue JSON::ParserError => e
       set_response_and_raise(LGD_ERR_JSON_DECODE, e)
     end
 
-    def init_form_data
-      { "LGD_TXID" => @tx_id, "LGD_AUTHCODE" => @auth_code, "LGD_MID" => @mid }
-    end
-
-    def gen_tx_id
-      sha = OpenSSL::Digest::SHA1.new
-      sha.update(get_unique)
-      "#{tx_header}#{sha}"
-    end
-
-    def gen_auth_code
-      sha = OpenSSL::Digest::SHA1.new
-      sha.update("#{@tx_id}#{@mert_key}").to_s
-    end
-
-    def tx_header
-      "#{@mid}-#{@config.server_id}#{timestamp}"
-    end
-
-    def get_unique
-      "#{timestamp}#{rand_three_digits}"
-    end
-
-    def rand_three_digits
-      "%03d" % rand(1000)
-    end
-
-    def timestamp
-      Time.now.getutc.strftime("%Y%m%d%H%M%S")
-    end
-
-    def rollback_reason
+    private def rollback_reason
       return "Timeout" if @response.code == LGD_ERR_TIMEDOUT
-      return "HTTP #{@http_code}" if (500...599) === @http_code.to_i
+      return "HTTP #{@http_code}" if http_code_error?
       @response.message
     end
-
-    def do_request
+    
+    private def do_request
       req, http = prepare_http_client
-      @logger.info("request: #{@endpoint} - #{@form_data.inspect}")
+      @logger.info("REQUEST: endpoint=#{@endpoint}; form_data=#{form_data.inspect}")
       res = http.request(req)
+      yield(req, res) if block_given?
       set_http_code(res.code) 
       res.body
     rescue Timeout::Error => e
@@ -127,71 +125,71 @@ module Dacom
       set_response_and_raise(LGD_ERR_CONNECT, e)
     end
 
-    def set_response_and_raise(code, e)
-      @response = Response::new(:code => code, :message => e.message)
-      @logger.info("response: #{@response}")
-      @logger.error("rescue from #{e.class} - #{e.message} \n #{e.backtrace.join("\n")}")
-      raise ResponseError, e.message
-    end
-
-    def prepare_http_client
+    private def prepare_http_client
       url = URI.parse(@endpoint)
-      req = Net::HTTP::Post.new(url.path)
+      req = @net_klass.const_get("Post").new(url.path)
       req["User-Agent"] = LGD_USER_AGENT
-      req.set_form_data(@form_data)
-      http = Net::HTTP.new(url.host, url.port)
-      http.open_timeout = http.read_timeout = @config.timeout
+      req.set_form_data(form_data)
+      http = @net_klass.new(url.host, url.port)
+      http.open_timeout = http.read_timeout = timeout
       if url.scheme == "https"
         http.use_ssl = true
-        http.verify_mode = OpenSSL::SSL::VERIFY_PEER if @config.verify_peer?
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER if verify_peer?
       end
       [req, http]
     end
 
-    def set_http_code(code)
+    private def set_http_code(code)
       @http_code = code.to_i
       fail HTTPCodeError, "invalid HTTP code #{code}" unless http_code_valid?
     end
 
-    def http_code_valid?
-      (200...300) === @http_code
+    private def http_code_valid?
+      (200...300) === @http_code.to_i
+    end
+
+    private def http_code_error?
+      (500...599) === @http_code.to_i
+    end
+
+    private def set_response_and_raise(code, e)
+      @response = @res_klass.new(code: code, message: e.message)
+      @logger.info("RESPONSE: #{@response}")
+      @logger.error("rescue from #{e.class} - #{e.message} \n #{e.backtrace.join("\n")}")
+      raise ResponseError, e.message
     end
   end
 
   class EventClient < Client
-    def initialize(options = {})
-      super(options)
+    def initialize(config:, logger:, net_klass:, res_klass:)
+      super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
       @auto_rollback = false
       @report_error = false
     end
   end
 
   class RollbackClient < EventClient
-    def initialize(options = {})
-      @parent_id = options.fetch(:parent_id) { fail ArgumentError, "missing parent ID" }
-      @reason = options.fetch(:reason) { fail ArgumentError, "missing parent reason" }
-      super(options)
+    def initialize(config:, logger:, net_klass:, res_klass:, parent_id:, reason:)
+      super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
+      @parent_id = parent_id
+      @reason = reason
     end
 
-    private
-
-    def init_form_data
-      super.merge({ "LGD_TXID" => @parent_id, "LGD_TXNAME" => "Rollback", "LGD_RB_TXID" => @tx_id, "LGD_RB_REASON" => @reason })
+    def form_data
+      @form_data ||= super.merge({ "LGD_TXID" => @parent_id, "LGD_TXNAME" => "Rollback", "LGD_RB_TXID" => tx_id, "LGD_RB_REASON" => @reason })
     end
   end
 
   class ReportClient < EventClient
-    def initialize(options = {})
-      @status = options.fetch(:status) { fail ArgumentError, "missing status" }
-      @message = options.fetch(:message) { fail ArgumentError, "missing message" }
-      super(options)
+    def initialize(config:, logger:, net_klass:, res_klass:, status:, message:)
+      super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
+      @status = status
+      @message = message
       @endpoint = @config.aux_url
     end
 
-    private
-
-    def init_form_data
-      super.merge({ "LGD_TXNAME" => "Report", "LGD_STATUS" => @status, "LGD_MSG" => @message })
+    def form_data
+      @form_data ||= super.merge({ "LGD_TXNAME" => "Report", "LGD_STATUS" => @status, "LGD_MSG" => @message })
     end
   end
 end
