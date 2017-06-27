@@ -1,7 +1,7 @@
 require "helper"
 
 describe Dacom::Client do
-  let(:client) { Dacom::Client.new(config: Stubs.config, net_klass: Stubs::HTTP, res_klass: Stubs::Response, time: Stubs.time, uuid: Stubs.uuid, logger: Logger.new(STDOUT)) }
+  let(:client) { Dacom::Client.new(config: Stubs.config, net_klass: Stubs::HTTP, res_klass: Stubs::Response, time: Stubs.time, uuid: Stubs.uuid) }
 
   it "must initialize from data" do
     %w[LGD_TXID LGD_AUTHCODE LGD_MID].each do |k|
@@ -20,6 +20,18 @@ describe Dacom::Client do
     res = client.tx
     res.must_be_instance_of Stubs::Response
     res.to_s.must_equal "path=/xpay/Gateway.do; user_agent=xpayclient (1.1.0.2/ruby); form_data={\"LGD_TXID\"=>\"lgdacomxpay-0120170626093059aabada32496180db0e430eeded11f6c17883f1ff\", \"LGD_AUTHCODE\"=>\"e77f8a2a9a3128c5386d57590557efa16337d0d2\", \"LGD_MID\"=>\"lgdacomxpay\"}"
+  end
+
+  it "must initialize http object properly" do
+    client.tx
+    client.http.tap do |http|
+      http.host.must_equal "xpayclient.lgdacom.net"
+      http.port.must_equal 443
+      http.open_timeout.must_equal 60
+      http.read_timeout.must_equal 60
+      http.use_ssl.must_equal true
+      http.verify_mode.must_equal OpenSSL::SSL::VERIFY_PEER
+    end
   end
 
   it "must detect JSON parse error" do

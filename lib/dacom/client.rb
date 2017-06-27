@@ -18,7 +18,7 @@ module Dacom
 
     def_delegators :@config, :server_id, :merchant_id, :merchant_key, :verify_peer?, :timeout
 
-    attr_reader :response, :reported, :rolled_back
+    attr_reader :http, :response, :reported, :rolled_back
 
     def initialize(config: Config.new, net_klass: Net::HTTP, res_klass: Response, logger: Logger.new(nil), time: Time.now, uuid: SecureRandom.uuid)
       @config = config
@@ -109,7 +109,7 @@ module Dacom
     end
     
     private def do_request
-      req, http = prepare_http_client
+      req, @http = prepare_http_client
       @logger.info("REQUEST: endpoint=#{@endpoint}; form_data=#{form_data.inspect}")
       res = http.request(req)
       yield(req, res) if block_given?
@@ -133,7 +133,8 @@ module Dacom
       req["User-Agent"] = LGD_USER_AGENT
       req.set_form_data(form_data)
       http = @net_klass.new(url.host, url.port)
-      http.open_timeout = http.read_timeout = timeout
+      http.open_timeout = timeout
+      http.read_timeout = timeout
       if url.scheme == "https"
         http.use_ssl = true
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER if verify_peer?
