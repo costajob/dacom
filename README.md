@@ -118,11 +118,23 @@ else
 end
 ```
 
+The `tx` method also accept a block yielding request and response objects before any face-lifting:
+```ruby
+client.tx do |req, res|
+  p req.body # inspecting the form data
+  p res # inspecting raw response form LGU+
+end
+```
+
 #### Response
 The `Response` object is a struct that contains parsed JSON data from LGU+, use it to provide feedback on success/failure:
 ```ruby
 puts res
 # "<Dacom::Response:70132949609560, code: \"XC01\", message: \"LGD_TXNAME 필드가 누락되었습니다.\", successful: false>"
+
+p res.raw # check raw response
+p res.code # check response LGU+ code (check constants.rb file)
+p res.message# check message by LGU+ (in KR)
 ```
 
 #### Rollback and error reporting
