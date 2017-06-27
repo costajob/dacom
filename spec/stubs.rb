@@ -4,8 +4,8 @@ module Stubs
   extend self
 
   class Response
-    attr_reader :code, :message
-    attr_accessor :body
+    attr_reader :message
+    attr_accessor :body, :code
 
     def initialize(options)
       @code = options[:code]
@@ -62,7 +62,7 @@ module Stubs
   end
 
   def time
-    Time.new(2017,6,26,10,30,59)
+    Time.new(2017,6,26,10,30,59, "+01:00")
   end
 
   def uuid

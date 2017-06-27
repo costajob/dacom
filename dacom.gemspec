@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.homepage = "https://github.com/costajob/dacom"
   s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   s.bindir = "bin"
-  s.executables = %w[dacom]
+  s.executables = %w[]
   s.require_paths = ["lib"]
   s.license = "MIT"
   s.required_ruby_version = ">= 2.2.2"

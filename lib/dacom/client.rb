@@ -18,7 +18,7 @@ module Dacom
 
     def_delegators :@config, :server_id, :merchant_id, :merchant_key, :verify_peer?, :timeout
 
-    attr_reader :response
+    attr_reader :response, :reported, :rolled_back
 
     def initialize(config: Config.new, net_klass: Net::HTTP, res_klass: Response, logger: Logger.new(nil), time: Time.now, uuid: SecureRandom.uuid)
       @config = config
@@ -82,6 +82,7 @@ module Dacom
                          res_klass: @res_klass,
                          parent_id: tx_id, 
                          reason: rollback_reason).tx
+      @rolled_back = true
     end
 
     private def report
@@ -92,6 +93,7 @@ module Dacom
                        res_klass: @res_klass,
                        status: @response.code,
                        message: @response.message).tx
+      @reported = true
     end
 
     private def parse_response(json)
@@ -161,7 +163,7 @@ module Dacom
   end
 
   class EventClient < Client
-    def initialize(config:, logger:, net_klass:, res_klass:)
+    def initialize(config:, logger: Logger.new(nil), net_klass:, res_klass:)
       super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
       @auto_rollback = false
       @report_error = false
@@ -169,7 +171,7 @@ module Dacom
   end
 
   class RollbackClient < EventClient
-    def initialize(config:, logger:, net_klass:, res_klass:, parent_id:, reason:)
+    def initialize(config:, logger: Logger.new(nil), net_klass:, res_klass:, parent_id:, reason:)
       super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
       @parent_id = parent_id
       @reason = reason
@@ -181,7 +183,7 @@ module Dacom
   end
 
   class ReportClient < EventClient
-    def initialize(config:, logger:, net_klass:, res_klass:, status:, message:)
+    def initialize(config:, logger: Logger.new(nil), net_klass:, res_klass:, status:, message:)
       super(config: config, logger: logger, net_klass: net_klass, res_klass: res_klass)
       @status = status
       @message = message
