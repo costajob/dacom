@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.version = Dacom::VERSION
   s.authors = ["costajob"]
   s.email = ["costajob@gmail.com"]
-  s.summary = %q{A Ruby port of the Dacom (LGU+) XPay client library}
+  s.summary = "A Ruby port of the Dacom/LGU+ payment library for Korea."
   s.homepage = "https://github.com/costajob/dacom"
   s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   s.bindir = "bin"
