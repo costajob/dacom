@@ -27,7 +27,7 @@ describe Dacom::Client do
       res.body = "{{}}"
     end
     res.must_be_instance_of Stubs::Response
-    res.to_s.must_equal "code=40001; message=743: unexpected token at '{{}}'"
+    res.code.must_equal "40001"
   end
 
   it "must detect timeout error" do
