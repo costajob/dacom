@@ -16,7 +16,7 @@ module Dacom
     class ResponseError < StandardError; end
     class HTTPCodeError < StandardError; end
 
-    def_delegators :@config, :server_id, :merchant_id, :merchant_key, :verify_peer?, :timeout
+    def_delegators :@config, :server_id, :merchant_id, :merchant_key, :verify_peer?
 
     attr_reader :http, :response, :reported, :rolled_back
 
@@ -133,8 +133,8 @@ module Dacom
       req["User-Agent"] = LGD_USER_AGENT
       req.set_form_data(form_data)
       http = @net_klass.new(url.host, url.port)
-      http.open_timeout = timeout
-      http.read_timeout = timeout
+      http.open_timeout = @config.timeout
+      http.read_timeout = @config.timeout
       if url.scheme == "https"
         http.use_ssl = true
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER if verify_peer?
