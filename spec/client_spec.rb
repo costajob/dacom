@@ -1,7 +1,7 @@
 require "helper"
 
 describe Dacom::Client do
-  let(:client) { Dacom::Client.new(config: Stubs.config, net_klass: Stubs::HTTP, res_klass: Stubs::Response, time: Stubs.time, uuid: Stubs.uuid) }
+  let(:client) { Dacom::Client.new(config: Stubs.config, net_klass: Stubs::HTTP, res_klass: Stubs::Response, time: Stubs.time, uuid: Stubs.uuid, logger: Logger.new(STDOUT)) }
 
   it "must initialize from data" do
     %w[LGD_TXID LGD_AUTHCODE LGD_MID].each do |k|
